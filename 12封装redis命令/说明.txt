@@ -1,0 +1,11 @@
+这个修复了打印配置信息的问题，在ConfigMgr.cpp 文件内的构造函数内加入：
+for (const auto& section_entry : _config_map) {
+		const std::string& section_name = section_entry.first;
+		SectionInfo section_config = section_entry.second;
+		std::cout << "[" << section_name << "]" << std::endl;
+		for (const auto& key_value_pair : section_config._section_datas) {
+			std::cout << key_value_pair.first << "=" << key_value_pair.second << std::endl;
+		}
+	}
+
+总之就是忘记打印了.....

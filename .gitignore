@@ -1,0 +1,42 @@
+# Qt 编译目录
+build/
+*.exe
+*.dll
+*.so
+*.dylib
+*.o
+*.obj
+
+# Qt Creator
+.qtcreator/
+.qtc_clangd/
+*.pro.user
+*.pro.user.*
+*.autosave
+
+# 临时文件
+*.log
+*.cache
+.DS_Store
+*.idx
+
+# 调试文件
+*.debug
+*.pdb
+
+# Visual Studio 缓存目录
+.vs/
+*.ipch
+*.suo
+*.db
+
+# 构建输出目录
+Debug/
+Release/
+x64/
+*.idb
+*.ilk
+*.recipe
+
+# Node.js 依赖
+node_modules/

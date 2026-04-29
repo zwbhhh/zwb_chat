@@ -1,0 +1,24 @@
+/* 给所有QPushButton设置样式：蓝色背景、白色文字、圆角 */
+QPushButton {
+    background-color: #409EFF; /* 背景色：浅蓝色 */
+    color: white; /* 文字颜色：白色 */
+    border-radius: 5px; /* 圆角：5像素 */
+    padding: 5px 10px; /* 内边距：上下5px，左右10px */
+}
+
+/* 鼠标 hover 到QPushButton时的样式 */
+QPushButton:hover {
+    background-color: #66B1FF;
+}
+
+/* 给MainWindow设置背景色 */
+MainWindow {
+    background-color: #F5F7FA;
+}
+
+#error[state='normal']{
+    color: green;
+}
+#error[state='err']{
+    color: red;
+}
