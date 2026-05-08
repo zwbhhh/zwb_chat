@@ -8,13 +8,11 @@
 #include "DistLock.h"
 #include <string>
 #include "CServer.h"
-#include "message.pb.h"
 using namespace std;
-using namespace message;
 
-LogicSystem::LogicSystem():_b_stop(false), _p_server(nullptr){
+LogicSystem::LogicSystem() :_b_stop(false) {
 	RegisterCallBacks();
-	_worker_thread = std::thread (&LogicSystem::DealMsg, this);
+	_worker_thread = std::thread(&LogicSystem::DealMsg, this);
 }
 
 LogicSystem::~LogicSystem(){
@@ -82,163 +80,18 @@ void LogicSystem::DealMsg() {
 void LogicSystem::RegisterCallBacks() {
 	_fun_callbacks[MSG_CHAT_LOGIN] = std::bind(&LogicSystem::LoginHandler, this,
 		placeholders::_1, placeholders::_2, placeholders::_3);
-
-	_fun_callbacks[ID_SEARCH_USER_REQ] = std::bind(&LogicSystem::SearchInfo, this,
-		placeholders::_1, placeholders::_2, placeholders::_3);
-
-	_fun_callbacks[ID_ADD_FRIEND_REQ] = std::bind(&LogicSystem::AddFriendApply, this,
-		placeholders::_1, placeholders::_2, placeholders::_3);
-
-	_fun_callbacks[ID_AUTH_FRIEND_REQ] = std::bind(&LogicSystem::AuthFriendApply, this,
-		placeholders::_1, placeholders::_2, placeholders::_3);
-
-	_fun_callbacks[ID_TEXT_CHAT_MSG_REQ] = std::bind(&LogicSystem::DealChatTextMsg, this,
-		placeholders::_1, placeholders::_2, placeholders::_3);
-
-	_fun_callbacks[ID_HEART_BEAT_REQ] = std::bind(&LogicSystem::HeartBeatHandler, this,
-		placeholders::_1, placeholders::_2, placeholders::_3);
-	
 }
 
-void LogicSystem::LoginHandler(shared_ptr<CSession> session, const short &msg_id, const string &msg_data) {
+void LogicSystem::LoginHandler(shared_ptr<CSession> session, const short& msg_id, const string& msg_data) {
 	Json::Reader reader;
 	Json::Value root;
 	reader.parse(msg_data, root);
-	auto uid = root["uid"].asInt();
-	auto token = root["token"].asString();
-	std::cout << "user login uid is  " << uid << " user token  is "
-		<< token << endl;
+	std::cout << "user login uid is  " << root["uid"].asInt() << " user token  is "
+		<< root["token"].asString() << endl;
 
-	Json::Value  rtvalue;
-	Defer defer([this, &rtvalue, session]() {
-		std::string return_str = rtvalue.toStyledString();
-		session->Send(return_str, MSG_CHAT_LOGIN_RSP);
-		});
-
-
-	//��redis��ȡ�û�token�Ƿ���ȷ
-	std::string uid_str = std::to_string(uid);
-	std::string token_key = USERTOKENPREFIX + uid_str;
-	std::string token_value = "";
-	bool success = RedisMgr::GetInstance()->Get(token_key, token_value);
-	if (!success) {
-		rtvalue["error"] = ErrorCodes::UidInvalid;
-		return ;
-	}
-
-	if (token_value != token) {
-		rtvalue["error"] = ErrorCodes::TokenInvalid;
-		return ;
-	}
-
-	rtvalue["error"] = ErrorCodes::Success;
-
-
-	std::string base_key = USER_BASE_INFO + uid_str;
-	auto user_info = std::make_shared<UserInfo>();
-	bool b_base = GetBaseInfo(base_key, uid, user_info);
-	if (!b_base) {
-		rtvalue["error"] = ErrorCodes::UidInvalid;
-		return;
-	}
-	rtvalue["uid"] = uid;
-	rtvalue["pwd"] = user_info->pwd;
-	rtvalue["name"] = user_info->name;
-	rtvalue["email"] = user_info->email;
-	rtvalue["nick"] = user_info->nick;
-	rtvalue["desc"] = user_info->desc;
-	rtvalue["sex"] = user_info->sex;
-	rtvalue["icon"] = user_info->icon;
-
-	//�����ݿ��ȡ�����б�
-	std::vector<std::shared_ptr<ApplyInfo>> apply_list;
-	auto b_apply = GetFriendApplyInfo(uid, apply_list);
-	if (b_apply) {
-		for (auto& apply : apply_list) {
-			Json::Value obj;
-			obj["name"] = apply->_name;
-			obj["uid"] = apply->_uid;
-			obj["icon"] = apply->_icon;
-			obj["nick"] = apply->_nick;
-			obj["sex"] = apply->_sex;
-			obj["desc"] = apply->_desc;
-			obj["status"] = apply->_status;
-			rtvalue["apply_list"].append(obj);
-		}
-	}
-
-	//��ȡ�����б�
-	std::vector<std::shared_ptr<UserInfo>> friend_list;
-	bool b_friend_list = GetFriendList(uid, friend_list);
-	for (auto& friend_ele : friend_list) {
-		Json::Value obj;
-		obj["name"] = friend_ele->name;
-		obj["uid"] = friend_ele->uid;
-		obj["icon"] = friend_ele->icon;
-		obj["nick"] = friend_ele->nick;
-		obj["sex"] = friend_ele->sex;
-		obj["desc"] = friend_ele->desc;
-		obj["back"] = friend_ele->back;
-		rtvalue["friend_list"].append(obj);
-	}
-
-	auto server_name = ConfigMgr::Inst().GetValue("SelfServer", "Name");
-	{
-		//�˴���ӷֲ�ʽ�����ø��̶߳�ռ��¼
-		//ƴ���û�ip��Ӧ��key
-		auto lock_key = LOCK_PREFIX + uid_str;
-		auto identifier = RedisMgr::GetInstance()->acquireLock(lock_key, LOCK_TIME_OUT, ACQUIRE_TIME_OUT);
-		//����defer����
-		Defer defer2([this, identifier, lock_key]() {
-			RedisMgr::GetInstance()->releaseLock(lock_key, identifier);
-			});
-		//�˴��жϸ��û��Ƿ��ڱ𴦻��߱���������¼
-
-		std::string uid_ip_value = "";
-		auto uid_ip_key = USERIPPREFIX + uid_str;
-		bool b_ip = RedisMgr::GetInstance()->Get(uid_ip_key, uid_ip_value);
-		//˵���û��Ѿ���¼�ˣ��˴�Ӧ���ߵ�֮ǰ���û���¼״̬
-		if (b_ip) {
-			//��ȡ��ǰ������ip��Ϣ
-			auto& cfg = ConfigMgr::Inst();
-			auto self_name = cfg["SelfServer"]["Name"];
-			//���֮ǰ��¼�ķ������͵�ǰ��ͬ����ֱ���ڱ��������ߵ�
-			if (uid_ip_value == self_name) {
-				//���Ҿ��е�����
-				auto old_session = UserMgr::GetInstance()->GetSession(uid);
-
-				//�˴�Ӧ�÷���������Ϣ
-				if (old_session) {
-					old_session->NotifyOffline(uid);
-					//����ɵ�����
-					_p_server->ClearSession(old_session->GetSessionId());
-				}
-
-			}
-			else {
-				//������Ǳ�����������֪ͨgrpc֪ͨ�����������ߵ�
-				//����֪ͨ
-				KickUserReq kick_req;
-				kick_req.set_uid(uid);
-				ChatGrpcClient::GetInstance()->NotifyKickUser(uid_ip_value, kick_req);
-			}
-		}
-
-		//session���û�uid
-		session->SetUserId(uid);
-		//Ϊ�û����õ�¼ip server������
-		std::string  ipkey = USERIPPREFIX + uid_str;
-		RedisMgr::GetInstance()->Set(ipkey, server_name);
-		//uid��session�󶨹���,�����Ժ����˲���
-		UserMgr::GetInstance()->SetUserSession(uid, session);
-		std::string  uid_session_key = USER_SESSION_PREFIX + uid_str;
-		RedisMgr::GetInstance()->Set(uid_session_key, session->GetSessionId());
-
-	}
-
-	return;
+	std::string return_str = root.toStyledString();
+	session->Send(return_str, msg_id);
 }
-
 void LogicSystem::SearchInfo(std::shared_ptr<CSession> session, const short& msg_id, const string& msg_data)
 {
 	Json::Reader reader;

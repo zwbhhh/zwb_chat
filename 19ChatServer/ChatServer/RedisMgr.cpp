@@ -202,7 +202,7 @@ bool RedisMgr::HSet(const std::string &key, const std::string &hkey, const std::
 		return false;
 	}
 
-	std::cout << "Execut command [ HSet " << key << "  " << hkey << "  " << value << " ] success ! " << std::endl;
+	std::cout << "认证成功" << std::endl;
 	freeReplyObject(reply);
 	_con_pool->returnConnection(connect);
 	return true;

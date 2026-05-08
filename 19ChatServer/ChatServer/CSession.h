@@ -32,11 +32,12 @@ public:
 	void SetUserId(int uid);
 	int GetUserId();
 	void Start();
-	void Send(char* msg,  short max_length, short msgid);
+	void Send(char* msg, short max_length, short msgid);
 	void Send(std::string msg, short msgid);
+	std::string& GetUuid();
 	void Close();
 	std::shared_ptr<CSession> SharedSelf();
-	void AsyncReadBody(int length);
+	void AsyncReadBody(int length);	
 	void AsyncReadHead(int total_len);
 	void NotifyOffline(int uid);
 	//�ж������Ƿ����
@@ -54,6 +55,7 @@ private:
 	void HandleWrite(const boost::system::error_code& error, std::shared_ptr<CSession> shared_self);
 	tcp::socket _socket;
 	std::string _session_id;
+	std::string _uuid;
 	char _data[MAX_LENGTH];
 	CServer* _server;
 	bool _b_close;
